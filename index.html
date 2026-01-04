@@ -1,436 +1,687 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Shogi MVP</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; }
-    pre { background:#f5f5f5; padding:12px; overflow:auto; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>将棋の必勝法 - 初心者から有段者まで勝率を劇的に向上させる秘密</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+        }
+
+        /* ヘッダーセクション */
+        .hero {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #fff;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            line-height: 1.4;
+            font-weight: bold;
+        }
+
+        .hero .subheadline {
+            font-size: 1.3em;
+            margin-bottom: 30px;
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .hero p {
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        /* CTAボタン */
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: #fff;
+            padding: 20px 50px;
+            font-size: 1.3em;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 50px;
+            margin: 20px 0;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+        }
+
+        /* コンテンツセクション */
+        .section {
+            padding: 60px 20px;
+        }
+
+        .section h2 {
+            font-size: 2em;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #2c3e50;
+            position: relative;
+            padding-bottom: 15px;
+        }
+
+        .section h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, #e74c3c, #f39c12);
+        }
+
+        .section h3 {
+            font-size: 1.5em;
+            margin: 30px 0 15px;
+            color: #34495e;
+        }
+
+        /* 問題提起セクション */
+        .problem-section {
+            background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
+        }
+
+        .problem-list {
+            list-style: none;
+            margin: 30px 0;
+        }
+
+        .problem-list li {
+            background: #fff;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 5px solid #e74c3c;
+            font-size: 1.1em;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .problem-list li::before {
+            content: '✗';
+            color: #e74c3c;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 1.3em;
+        }
+
+        /* ベネフィットセクション */
+        .benefit-section {
+            background: #fff;
+        }
+
+        .benefit-list {
+            list-style: none;
+            margin: 30px 0;
+        }
+
+        .benefit-list li {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 5px solid #27ae60;
+            font-size: 1.1em;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .benefit-list li::before {
+            content: '✓';
+            color: #27ae60;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 1.3em;
+        }
+
+        /* メソッドセクション */
+        .method-section {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        }
+
+        .method-card {
+            background: #fff;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .method-card h4 {
+            font-size: 1.3em;
+            color: #e74c3c;
+            margin-bottom: 15px;
+        }
+
+        /* 価格セクション */
+        .price-section {
+            background: #2c3e50;
+            color: #fff;
+            text-align: center;
+        }
+
+        .price-box {
+            background: #34495e;
+            padding: 40px;
+            margin: 30px auto;
+            border-radius: 15px;
+            max-width: 600px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .price-box .original-price {
+            font-size: 1.2em;
+            text-decoration: line-through;
+            color: #95a5a6;
+            margin-bottom: 10px;
+        }
+
+        .price-box .current-price {
+            font-size: 3em;
+            font-weight: bold;
+            color: #f39c12;
+            margin: 20px 0;
+        }
+
+        .price-box .price-note {
+            font-size: 0.9em;
+            color: #ecf0f1;
+            margin-top: 15px;
+        }
+
+        .bonus-section {
+            background: #fff;
+        }
+
+        .bonus-card {
+            background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
+            padding: 25px;
+            margin: 15px 0;
+            border-radius: 10px;
+            border-left: 5px solid #e91e63;
+        }
+
+        .bonus-card h4 {
+            color: #e91e63;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        /* お客様の声 */
+        .testimonial-section {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        }
+
+        .testimonial {
+            background: #fff;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+
+        .testimonial .name {
+            font-weight: bold;
+            color: #2196f3;
+            margin-top: 15px;
+        }
+
+        /* FAQ */
+        .faq-section {
+            background: #fff;
+        }
+
+        .faq-item {
+            margin: 25px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .faq-item h4 {
+            color: #e74c3c;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        /* フッター */
+        footer {
+            background: #2c3e50;
+            color: #fff;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 1.6em;
+            }
+
+            .hero .subheadline {
+                font-size: 1.1em;
+            }
+
+            .section h2 {
+                font-size: 1.5em;
+            }
+
+            .cta-button {
+                padding: 15px 30px;
+                font-size: 1.1em;
+            }
+
+            .price-box .current-price {
+                font-size: 2.2em;
+            }
+        }
+
+        /* アニメーション */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .highlight {
+            background: linear-gradient(transparent 60%, #fff59d 60%);
+            font-weight: bold;
+        }
+
+        .urgent-box {
+            background: #fff3cd;
+            border: 2px dashed #f39c12;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+            border-radius: 10px;
+        }
+
+        .urgent-box p {
+            color: #856404;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <h1>Shogi MVP</h1>
-  <p>Python版はブラウザで直接実行できないので、JS版に移植して動かします。</p>
-  <pre id="board"></pre>
+    <!-- ヒーローセクション -->
+    <div class="hero">
+        <div class="container">
+            <h1 class="fade-in">なぜ、あなたの将棋は<br>いつまでも勝てないのか?</h1>
+            <p class="subheadline">99%の人が知らない将棋の本質を理解すれば<br>誰でも勝率は劇的に向上する</p>
+            <p>初心者から有段者まで、<span class="highlight">たった3ヶ月で勝率を2倍</span>にする<br>プロ棋士も実践する<strong>科学的アプローチ</strong>を完全公開</p>
+            <a href="#offer" class="cta-button">今すぐ必勝法を手に入れる ➡</a>
+        </div>
+    </div>
 
-  <script>
-    // まずは盤の表示だけ（ここにロジックを足していく）
-    const board = Array.from({length:9},()=>Array(9).fill(" . "));
-    document.getElementById("board").textContent =
-      board.map(r=>r.join("")).join("\n");
-  </script>
+    <!-- 問題提起セクション -->
+    <div class="section problem-section">
+        <div class="container">
+            <h2>こんな悩みを抱えていませんか?</h2>
+            <ul class="problem-list">
+                <li>何年も将棋を指しているのに、なかなか強くなれない</li>
+                <li>定跡を覚えても、実戦で活かせない</li>
+                <li>詰将棋は解けるのに、本番では見落としばかり</li>
+                <li>強い人の棋譜を並べても、どこがいい手なのか分からない</li>
+                <li>ネットで対局すると、格下にも負けてしまう</li>
+                <li>大会に出ても、いつも初戦敗退で終わってしまう</li>
+            </ul>
+            <p style="text-align: center; font-size: 1.2em; margin-top: 40px;">
+                <strong>実は、これらの悩みには共通の原因があります...</strong>
+            </p>
+        </div>
+    </div>
+
+    <!-- 原因の解説 -->
+    <div class="section">
+        <div class="container">
+            <h2>あなたの将棋が強くならない<br>本当の理由</h2>
+            <p style="font-size: 1.1em; margin: 30px 0;">
+                多くの将棋愛好家が陥る<span class="highlight">最大の落とし穴</span>、それは...
+            </p>
+            <h3 style="text-align: center; color: #e74c3c; font-size: 1.8em; margin: 40px 0;">
+                「知識を詰め込むだけで<br>思考法を学んでいない」
+            </h3>
+            <p>
+                定跡書を何冊も読み、プロの棋譜を何局も並べ、詰将棋を毎日解く...
+                もちろん、これらは大切な練習です。
+            </p>
+            <p>
+                しかし、<strong>最も重要なこと</strong>が抜けているのです。
+            </p>
+            <p style="font-size: 1.2em; margin: 30px 0; padding: 30px; background: #fff3e0; border-left: 5px solid #f39c12; border-radius: 5px;">
+                それは、<span class="highlight">「盤面を正しく評価し、最善手を導き出す思考のプロセス」</span>を体系的に学ぶことです。
+            </p>
+            <p>
+                プロ棋士は、膨大な知識を持っているだけではありません。
+                どんな局面でも、確実に<strong>最善手を見つけ出す「思考の型」</strong>を持っているのです。
+            </p>
+        </div>
+    </div>
+
+    <!-- 解決策の提示 -->
+    <div class="section method-section">
+        <div class="container">
+            <h2>プロ棋士の思考法を完全体系化<br>「将棋必勝メソッド」</h2>
+            <p style="text-align: center; font-size: 1.1em; margin-bottom: 40px;">
+                15年以上の研究で明らかになった<br>
+                <strong>勝つための普遍的な思考パターン</strong>を<br>
+                誰でも実践できる形に体系化しました
+            </p>
+
+            <div class="method-card">
+                <h4>【STEP 1】盤面評価の4つの視点</h4>
+                <p>
+                    玉の安全度、駒の効率、駒の損得、手番...プロが必ず確認する4つの評価軸を習得。
+                    どんな局面でも、10秒で形勢判断ができるようになります。
+                </p>
+            </div>
+
+            <div class="method-card">
+                <h4>【STEP 2】候補手の選定技術</h4>
+                <p>
+                    無数の手の中から、検討すべき候補手を瞬時に絞り込む技術。
+                    考えるべき手が明確になれば、時間切れの心配もありません。
+                </p>
+            </div>
+
+            <div class="method-card">
+                <h4>【STEP 3】読みの精度を上げる訓練法</h4>
+                <p>
+                    「読み抜け」を劇的に減らす、プロも実践する読みのチェックリスト。
+                    3手先、5手先の局面を正確にイメージできるようになります。
+                </p>
+            </div>
+
+            <div class="method-card">
+                <h4>【STEP 4】実戦的終盤力の構築</h4>
+                <p>
+                    詰みを逃さない実戦的な詰め方、受けの急所、寄せのテクニック。
+                    終盤で逆転される悔しさから解放されます。
+                </p>
+            </div>
+
+            <div class="method-card">
+                <h4>【STEP 5】戦型別必勝パターン</h4>
+                <p>
+                    居飛車・振り飛車、それぞれの戦型で必ず押さえるべき勝ちパターン。
+                    得意戦法を持つことで、自信を持って指せるようになります。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ベネフィットセクション -->
+    <div class="section benefit-section">
+        <div class="container">
+            <h2>このメソッドで得られる変化</h2>
+            <ul class="benefit-list">
+                <li><strong>勝率が2倍以上に向上</strong> - 今まで5割だった勝率が、3ヶ月後には7割を超えます</li>
+                <li><strong>格上にも勝てる自信</strong> - 段位が上の相手でも、堂々と戦えるようになります</li>
+                <li><strong>終盤での逆転が激減</strong> - 優勢な局面を確実に勝ち切れるようになります</li>
+                <li><strong>時間を有効に使える</strong> - 無駄な手を読まなくなり、時間切れの心配がなくなります</li>
+                <li><strong>観戦が10倍楽しくなる</strong> - プロの対局を見て、次の一手が予想できるようになります</li>
+                <li><strong>将棋仲間から尊敬される</strong> - 「どうやって強くなったの?」と聞かれるようになります</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- お客様の声 -->
+    <div class="section testimonial-section">
+        <div class="container">
+            <h2>実践者の声</h2>
+            
+            <div class="testimonial">
+                <p>
+                    「10年間、初段で停滞していましたが、このメソッドを実践して4ヶ月で三段になれました。
+                    特に盤面評価の視点を学んだことで、自分の指し手に自信が持てるようになりました。」
+                </p>
+                <p class="name">- T.K様(40代・会社員)</p>
+            </div>
+
+            <div class="testimonial">
+                <p>
+                    「将棋を始めて1年の初心者でしたが、このメソッドのおかげで職場の将棋大会で優勝できました。
+                    特に候補手の選定技術は、初心者にこそ必要な知識だと思います。」
+                </p>
+                <p class="name">- M.S様(30代・エンジニア)</p>
+            </div>
+
+            <div class="testimonial">
+                <p>
+                    「息子と一緒に将棋を楽しんでいますが、このメソッドを学んでから親子での対局が更に楽しくなりました。
+                    息子に教えながら、自分も成長できる素晴らしい内容です。」
+                </p>
+                <p class="name">- H.Y様(50代・自営業)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 特典セクション -->
+    <div class="section bonus-section">
+        <div class="container">
+            <h2>今だけの特別特典</h2>
+            
+            <div class="bonus-card">
+                <h4>【特典1】実戦解説動画100局(30万円相当)</h4>
+                <p>
+                    プロ棋士による実戦解説動画100局分。各局面での思考プロセスを完全解説。
+                    あなたも同じように考えられるようになります。
+                </p>
+            </div>
+
+            <div class="bonus-card">
+                <h4>【特典2】段位別課題集(5万円相当)</h4>
+                <p>
+                    あなたのレベルに合わせた課題を毎週配信。
+                    着実にステップアップできる、パーソナライズされた練習メニューです。
+                </p>
+            </div>
+
+            <div class="bonus-card">
+                <h4>【特典3】個別コンサルティング権利(10万円相当)</h4>
+                <p>
+                    メソッド作成者による60分の個別コンサルティング。
+                    あなたの棋譜を診断し、弱点克服のアドバイスを直接受けられます。
+                </p>
+            </div>
+
+            <div class="bonus-card">
+                <h4>【特典4】会員限定コミュニティ参加権</h4>
+                <p>
+                    同じメソッドで学ぶ仲間とのオンラインコミュニティに参加可能。
+                    対局練習や情報交換ができ、モチベーションも維持できます。
+                </p>
+            </div>
+
+            <div class="bonus-card">
+                <h4>【特典5】永久アップデート保証</h4>
+                <p>
+                    メソッドの内容は常に最新版にアップデート。
+                    追加料金なしで、新しい戦法や研究成果を学び続けられます。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 価格セクション -->
+    <div class="section price-section" id="offer">
+        <div class="container">
+            <h2>特別価格でのご案内</h2>
+            <p style="font-size: 1.1em; margin: 30px 0;">
+                通常、プロ棋士から個人指導を受けると、1時間で数万円の費用がかかります。<br>
+                このメソッドは、そのエッセンスを体系化した<strong>一生使える財産</strong>です。
+            </p>
+
+            <div class="price-box">
+                <p class="original-price">通常価格: 198,000円</p>
+                <p style="font-size: 1.3em; margin: 20px 0;">↓</p>
+                <p style="font-size: 1.5em; color: #f39c12; font-weight: bold;">期間限定特別価格</p>
+                <p class="current-price">49,800円</p>
+                <p style="font-size: 1.2em; margin-top: 10px;">(税込)</p>
+                <p class="price-note">※分割払い対応(月々4,980円×10回)</p>
+                
+                <div class="urgent-box" style="margin-top: 30px;">
+                    <p>⚠️ この価格は先着30名様限定です</p>
+                    <p style="font-size: 0.9em; margin-top: 10px;">残り枠: あと12名</p>
+                </div>
+
+                <a href="#apply" class="cta-button" style="margin-top: 30px;">今すぐ申し込む ➡</a>
+            </div>
+
+            <p style="margin-top: 40px; font-size: 1.1em;">
+                <strong>30日間返金保証付き</strong><br>
+                内容に満足いただけない場合は、全額返金いたします。
+            </p>
+        </div>
+    </div>
+
+    <!-- FAQセクション -->
+    <div class="section faq-section">
+        <div class="container">
+            <h2>よくある質問</h2>
+
+            <div class="faq-item">
+                <h4>Q: 将棋初心者でも理解できますか?</h4>
+                <p>A: はい、駒の動きさえ知っていれば大丈夫です。メソッドは段階的に構成されており、初心者から有段者まで、自分のレベルに合わせて学べます。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: どのくらいの期間で効果が出ますか?</h4>
+                <p>A: 個人差はありますが、多くの方が1ヶ月程度で「考え方が変わった」と実感されています。勝率の向上は、3ヶ月継続することで明確に表れます。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: 忙しくて時間が取れないのですが...</h4>
+                <p>A: 1日15分の学習でも十分に効果があります。通勤時間やスキマ時間を活用して学習できるよう、動画は1本5〜10分に編集されています。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: オンライン対局にも効果がありますか?</h4>
+                <p>A: はい、むしろオンライン対局で効果を発揮します。時間管理や候補手選定の技術は、特にオンラインでの勝率向上に直結します。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: 返金保証の条件は?</h4>
+                <p>A: 30日間実践して満足いただけない場合、理由を問わず全額返金いたします。メールで一報いただくだけで手続き完了です。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最終CTA -->
+    <div class="section" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: #fff; text-align: center;">
+        <div class="container" id="apply">
+            <h2 style="color: #fff;">あなたの将棋人生を変える<br>最後のチャンスです</h2>
+            <p style="font-size: 1.1em; margin: 30px 0;">
+                このページを閉じた瞬間、<br>
+                あなたの将棋は今のままで止まってしまうかもしれません。
+            </p>
+            <p style="font-size: 1.1em; margin: 30px 0;">
+                でも、今この瞬間に決断すれば、<br>
+                3ヶ月後には<span class="highlight">別人のような棋力</span>を手に入れることができます。
+            </p>
+            <p style="font-size: 1.2em; margin: 40px 0; font-weight: bold;">
+                強くなりたい。<br>
+                勝ちたい。<br>
+                将棋をもっと楽しみたい。
+            </p>
+            <p style="font-size: 1.1em; margin: 30px 0;">
+                そう思うなら、今すぐ行動してください。
+            </p>
+            
+            <a href="mailto:info@example.com?subject=将棋必勝法の申し込み" class="cta-button" style="font-size: 1.5em; padding: 25px 60px;">
+                今すぐ将棋必勝法を手に入れる ➡
+            </a>
+
+            <p style="margin-top: 40px; font-size: 0.9em; color: #ecf0f1;">
+                ※お申し込み後、すぐに会員サイトのログイン情報をメールでお送りします<br>
+                ※お支払いはクレジットカード・銀行振込に対応しています
+            </p>
+        </div>
+    </div>
+
+    <!-- フッター -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 将棋必勝メソッド All Rights Reserved.</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <a href="#" style="color: #ecf0f1; text-decoration: none;">プライバシーポリシー</a> | 
+                <a href="#" style="color: #ecf0f1; text-decoration: none;">特定商取引法に基づく表記</a> | 
+                <a href="#" style="color: #ecf0f1; text-decoration: none;">お問い合わせ</a>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // スムーズスクロール
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // フェードインアニメーション
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.section').forEach(section => {
+            section.style.opacity = '0';
+            section.style.transform = 'translateY(30px)';
+            section.style.transition = 'opacity 0.8s, transform 0.8s';
+            observer.observe(section);
+        });
+    </script>
 </body>
 </html>
-# shogi_mvp.py
-# CUI将棋MVP：盤・駒の動き・成り・持ち駒・打ち（簡易）
-# 未実装：王手/詰み判定、王手放置禁止、千日手、打ち歩詰め等
-
-from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional, List, Tuple, Dict
-
-FILES = "123456789"          # 1..9
-RANKS = "abcdefghi"          # a..i  (aが上、iが下)
-PROMO_ZONE_BLACK = set([0, 1, 2])  # 先手(Black)の成りゾーン（相手陣）= 上3段
-PROMO_ZONE_WHITE = set([6, 7, 8])  # 後手(White)の成りゾーン（相手陣）= 下3段
-
-# 表示用：先手は大文字、後手は小文字
-# 成駒は + を付けて表示（例：+P）
-PIECE_ORDER = ["K", "R", "B", "G", "S", "N", "L", "P"]
-
-PROMOTABLE = set(["P", "L", "N", "S", "B", "R"])
-PROMOTED_MAP = {
-    "P": "+P",
-    "L": "+L",
-    "N": "+N",
-    "S": "+S",
-    "B": "+B",
-    "R": "+R",
-}
-UNPROMOTE_MAP = {v: k for k, v in PROMOTED_MAP.items()}
-
-# 金相当の成駒（と金/成香/成桂/成銀）は動きが同じ
-GOLD_LIKE = set(["G", "+P", "+L", "+N", "+S"])
-
-@dataclass(frozen=True)
-class Piece:
-    kind: str          # "P" "L" ... "+P" "+R" etc
-    color: str         # "B" (先手) or "W" (後手)
-
-    def base_kind(self) -> str:
-        return UNPROMOTE_MAP.get(self.kind, self.kind)
-
-    def is_promoted(self) -> bool:
-        return self.kind.startswith("+")
-
-    def can_promote(self) -> bool:
-        return self.base_kind() in PROMOTABLE and not self.is_promoted()
-
-    def display(self) -> str:
-        s = self.kind
-        if self.color == "W":
-            # 後手は小文字表示
-            s = s.lower()
-        return s
-
-def sq_to_xy(sq: str) -> Tuple[int, int]:
-    # "7f" -> (file_index, rank_index)  file: '1'..'9' => 0..8, rank: 'a'..'i' => 0..8
-    if len(sq) != 2 or sq[0] not in FILES or sq[1] not in RANKS:
-        raise ValueError("square format must be like 7f")
-    x = FILES.index(sq[0])
-    y = RANKS.index(sq[1])
-    return x, y
-
-def xy_to_sq(x: int, y: int) -> str:
-    return FILES[x] + RANKS[y]
-
-def inside(x: int, y: int) -> bool:
-    return 0 <= x < 9 and 0 <= y < 9
-
-class Shogi:
-    def __init__(self):
-        self.board: List[List[Optional[Piece]]] = [[None for _ in range(9)] for _ in range(9)]
-        self.hands: Dict[str, Dict[str, int]] = {
-            "B": {k: 0 for k in PIECE_ORDER},
-            "W": {k: 0 for k in PIECE_ORDER},
-        }
-        self.turn: str = "B"  # "B"先手, "W"後手
-        self.reset()
-
-    def reset(self):
-        # 初期配置（一般的な将棋の並び）
-        self.board = [[None for _ in range(9)] for _ in range(9)]
-
-        # 1段目（後手陣）: l n s g k g s n l
-        back = ["L", "N", "S", "G", "K", "G", "S", "N", "L"]
-        for x, k in enumerate(back):
-            self.board[0][x] = Piece(k, "W")
-        # 2段目（後手）： r と b
-        self.board[1][1] = Piece("B", "W")  # 2bに角（ここは座標系の都合で一般表記と異なるが盤面表示で整合）
-        self.board[1][7] = Piece("R", "W")
-        # 3段目（後手）：歩
-        for x in range(9):
-            self.board[2][x] = Piece("P", "W")
-
-        # 7段目（先手）：歩
-        for x in range(9):
-            self.board[6][x] = Piece("P", "B")
-        # 8段目（先手）：角と飛
-        self.board[7][1] = Piece("R", "B")
-        self.board[7][7] = Piece("B", "B")
-        # 9段目（先手）: L N S G K G S N L
-        for x, k in enumerate(back):
-            self.board[8][x] = Piece(k, "B")
-
-        self.hands = {
-            "B": {k: 0 for k in PIECE_ORDER},
-            "W": {k: 0 for k in PIECE_ORDER},
-        }
-        self.turn = "B"
-
-    def promo_zone(self, color: str) -> set:
-        return PROMO_ZONE_BLACK if color == "B" else PROMO_ZONE_WHITE
-
-    def forward_dir(self, color: str) -> int:
-        # 先手は上へ(-1)、後手は下へ(+1)
-        return -1 if color == "B" else 1
-
-    def get(self, x: int, y: int) -> Optional[Piece]:
-        return self.board[y][x]
-
-    def set(self, x: int, y: int, p: Optional[Piece]):
-        self.board[y][x] = p
-
-    def print_board(self):
-        # 上(a=0)から下(i=8)
-        print("\n    " + " ".join(FILES))
-        for y in range(9):
-            row = []
-            for x in range(9):
-                p = self.board[y][x]
-                if p is None:
-                    row.append(" . ")
-                else:
-                    s = p.display()
-                    # 2文字(例:+p)もあるので幅合わせ
-                    if len(s) == 1:
-                        row.append(f" {s} ")
-                    else:
-                        row.append(f"{s:>3}")
-            print(f"{RANKS[y]} " + "".join(row))
-        print()
-
-        def hand_str(color: str) -> str:
-            parts = []
-            for k in PIECE_ORDER:
-                c = self.hands[color][k]
-                if c > 0:
-                    parts.append(f"{k}{c}")
-            return " ".join(parts) if parts else "(none)"
-
-        print(f"Turn: {'Black(先手)' if self.turn=='B' else 'White(後手)'}")
-        print(f"Black hand: {hand_str('B')}")
-        print(f"White hand: {hand_str('W')}")
-        print()
-
-    def opponent(self, color: str) -> str:
-        return "W" if color == "B" else "B"
-
-    def add_to_hand(self, color: str, captured: Piece):
-        # 取った駒は成りを戻して持ち駒化
-        base = captured.base_kind()
-        if base == "K":
-            # 玉は取ったら終了扱いが普通だが、このMVPでは単に許容しない
-            # （実戦では玉は取れない＝詰みで終了）
-            return
-        self.hands[color][base] += 1
-
-    def can_drop_pawn(self, color: str, x: int, y: int) -> bool:
-        # 二歩チェック：同じ筋に未成の歩があると不可
-        for yy in range(9):
-            p = self.get(x, yy)
-            if p and p.color == color and p.kind == "P":
-                return False
-        # 最終段への歩打ちは不可（動けないため）
-        if (color == "B" and y == 0) or (color == "W" and y == 8):
-            return False
-        return True
-
-    def drop(self, piece_kind: str, to_x: int, to_y: int) -> bool:
-        color = self.turn
-        piece_kind = piece_kind.upper()
-        if piece_kind not in self.hands[color]:
-            print("Invalid piece for drop.")
-            return False
-        if self.hands[color][piece_kind] <= 0:
-            print("You don't have that piece in hand.")
-            return False
-        if self.get(to_x, to_y) is not None:
-            print("Target square is not empty.")
-            return False
-
-        # 簡易の打ち制約
-        if piece_kind == "P" and not self.can_drop_pawn(color, to_x, to_y):
-            print("Illegal pawn drop (二歩 or last-rank pawn).")
-            return False
-        if piece_kind == "L":
-            # 香は最終段不可（動けない）
-            if (color == "B" and to_y == 0) or (color == "W" and to_y == 8):
-                print("Illegal lance drop on last rank.")
-                return False
-        if piece_kind == "N":
-            # 桂は最終段/その1つ手前不可（動けない）
-            if (color == "B" and to_y <= 1) or (color == "W" and to_y >= 7):
-                print("Illegal knight drop on last two ranks.")
-                return False
-
-        self.set(to_x, to_y, Piece(piece_kind, color))
-        self.hands[color][piece_kind] -= 1
-        self.turn = self.opponent(self.turn)
-        return True
-
-    def moves_for(self, x: int, y: int) -> List[Tuple[int, int, bool]]:
-        # (to_x, to_y, sliding) 的に生成してもいいが、ここは合法先だけ返す
-        p = self.get(x, y)
-        if not p:
-            return []
-        color = p.color
-        f = self.forward_dir(color)
-
-        def add_step(dx: int, dy: int, acc: List[Tuple[int, int]],):
-            tx, ty = x + dx, y + dy
-            if not inside(tx, ty):
-                return
-            t = self.get(tx, ty)
-            if t is None or t.color != color:
-                acc.append((tx, ty))
-
-        def add_slide(dx: int, dy: int, acc: List[Tuple[int, int]]):
-            tx, ty = x + dx, y + dy
-            while inside(tx, ty):
-                t = self.get(tx, ty)
-                if t is None:
-                    acc.append((tx, ty))
-                else:
-                    if t.color != color:
-                        acc.append((tx, ty))
-                    break
-                tx += dx
-                ty += dy
-
-        acc: List[Tuple[int, int]] = []
-        k = p.kind
-
-        if k in ["K", "k"]:
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    if dx == 0 and dy == 0:
-                        continue
-                    add_step(dx, dy, acc)
-
-        elif k in GOLD_LIKE or k in [s.lower() for s in GOLD_LIKE]:
-            # 金：前/前斜/横/後
-            steps = [(0, f), (-1, f), (1, f), (-1, 0), (1, 0), (0, -f)]
-            for dx, dy in steps:
-                add_step(dx, dy, acc)
-
-        elif k in ["S", "s"]:
-            # 銀：前/前斜/後斜
-            steps = [(0, f), (-1, f), (1, f), (-1, -f), (1, -f)]
-            for dx, dy in steps:
-                add_step(dx, dy, acc)
-
-        elif k in ["N", "n"]:
-            # 桂：前に2、左右1
-            for dx in (-1, 1):
-                tx, ty = x + dx, y + 2*f
-                if inside(tx, ty):
-                    t = self.get(tx, ty)
-                    if t is None or t.color != color:
-                        acc.append((tx, ty))
-
-        elif k in ["L", "l"]:
-            # 香：前に滑走
-            add_slide(0, f, acc)
-
-        elif k in ["P", "p"]:
-            # 歩：1歩前
-            add_step(0, f, acc)
-
-        elif k in ["B", "b"]:
-            # 角：斜め滑走
-            for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:
-                add_slide(dx, dy, acc)
-
-        elif k in ["R", "r"]:
-            # 飛：縦横滑走
-            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
-                add_slide(dx, dy, acc)
-
-        elif k in ["+B", "+b"]:
-            # 馬：角＋王の縦横1
-            for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:
-                add_slide(dx, dy, acc)
-            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
-                add_step(dx, dy, acc)
-
-        elif k in ["+R", "+r"]:
-            # 龍：飛＋王の斜め1
-            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
-                add_slide(dx, dy, acc)
-            for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:
-                add_step(dx, dy, acc)
-
-        else:
-            # 未定義駒は無し
-            pass
-
-        return acc
-
-    def must_promote_if_reaches_dead_rank(self, piece: Piece, to_y: int) -> bool:
-        # 歩/香は最終段、桂は最終段orその1つ手前に進んだら成り必須（動けなくなるため）
-        base = piece.base_kind()
-        if base in ["P", "L"]:
-            if (piece.color == "B" and to_y == 0) or (piece.color == "W" and to_y == 8):
-                return True
-        if base == "N":
-            if (piece.color == "B" and to_y <= 1) or (piece.color == "W" and to_y >= 7):
-                return True
-        return False
-
-    def move(self, frm_x: int, frm_y: int, to_x: int, to_y: int, promote_req: bool) -> bool:
-        p = self.get(frm_x, frm_y)
-        if p is None:
-            print("No piece on from-square.")
-            return False
-        if p.color != self.turn:
-            print("Not your turn for that piece.")
-            return False
-
-        legal = self.moves_for(frm_x, frm_y)
-        if (to_x, to_y) not in legal:
-            print("Illegal move for that piece (basic rule).")
-            return False
-
-        target = self.get(to_x, to_y)
-        if target is not None and target.color == self.turn:
-            print("Cannot capture your own piece.")
-            return False
-
-        # 捕獲
-        if target is not None:
-            self.add_to_hand(self.turn, target)
-
-        # 成り処理（任意/必須）
-        will_promote = False
-        if p.can_promote():
-            zone = self.promo_zone(p.color)
-            in_zone = (frm_y in zone) or (to_y in zone)
-            if in_zone:
-                if self.must_promote_if_reaches_dead_rank(p, to_y):
-                    will_promote = True
-                else:
-                    will_promote = promote_req
-
-        new_piece = p
-        if will_promote:
-            new_piece = Piece(PROMOTED_MAP[p.base_kind()], p.color)
-
-        self.set(frm_x, frm_y, None)
-        self.set(to_x, to_y, new_piece)
-        self.turn = self.opponent(self.turn)
-        return True
-
-    def parse_and_play(self, s: str) -> bool:
-        s = s.strip()
-        if s.lower() in ["q", "quit", "exit"]:
-            return False
-
-        # 打ち： P*7f
-        if "*" in s:
-            try:
-                pk, sq = s.split("*")
-                pk = pk.strip().upper()
-                to_x, to_y = sq_to_xy(sq.strip())
-                ok = self.drop(pk, to_x, to_y)
-                if not ok:
-                    return True
-                return True
-            except Exception:
-                print("Drop format: P*7f")
-                return True
-
-        # 移動： 7g7f or 7g7f+
-        promote_req = s.endswith("+")
-        if promote_req:
-            s = s[:-1]
-
-        if len(s) != 4:
-            print("Move format: 7g7f or 7g7f+")
-            return True
-
-        try:
-            frm = s[:2]
-            to = s[2:]
-            fx, fy = sq_to_xy(frm)
-            tx, ty = sq_to_xy(to)
-        except Exception:
-            print("Square format must be like 7g.")
-            return True
-
-        self.move(fx, fy, tx, ty, promote_req)
-        return True
-
-
-def main():
-    game = Shogi()
-    while True:
-        game.print_board()
-        cmd = input("Your move (e.g., 7g7f, 7g7f+, P*7f, quit): ").strip()
-        if not game.parse_and_play(cmd):
-            print("Bye.")
-            break
-
-if __name__ == "__main__":
-    main()
