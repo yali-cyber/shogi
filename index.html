@@ -1,431 +1,412 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Description" content="借金1億・裏切り・詐欺被害の地獄から「脳科学×スピリチュアル」で年商6億へ。人生を物理的にひっくり返す唯一の解。">
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.7">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Hiragino Sans'; color: #0d121f; -webkit-text-stroke: #0d121f}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Hiragino Sans'; color: #0d121f; -webkit-text-stroke: #0d121f; min-height: 18.0px}
-    span.s1 {font-kerning: none}
-  </style>
-</head>
-<body>
-<p class="p1"><span class="s1"># shogi_mvp.py</span></p>
-<p class="p1"><span class="s1"># CUI将棋MVP：盤・駒の動き・成り・持ち駒・打ち（簡易）</span></p>
-<p class="p1"><span class="s1"># 未実装：王手/詰み判定、王手放置禁止、千日手、打ち歩詰め等</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">from __future__ import annotations</span></p>
-<p class="p1"><span class="s1">from dataclasses import dataclass</span></p>
-<p class="p1"><span class="s1">from typing import Optional, List, Tuple, Dict</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">FILES = "123456789"<span class="Apple-converted-space">          </span># 1..9</span></p>
-<p class="p1"><span class="s1">RANKS = "abcdefghi"<span class="Apple-converted-space">          </span># a..i<span class="Apple-converted-space">  </span>(aが上、iが下)</span></p>
-<p class="p1"><span class="s1">PROMO_ZONE_BLACK = set([0, 1, 2])<span class="Apple-converted-space">  </span># 先手(Black)の成りゾーン（相手陣）= 上3段</span></p>
-<p class="p1"><span class="s1">PROMO_ZONE_WHITE = set([6, 7, 8])<span class="Apple-converted-space">  </span># 後手(White)の成りゾーン（相手陣）= 下3段</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"># 表示用：先手は大文字、後手は小文字</span></p>
-<p class="p1"><span class="s1"># 成駒は + を付けて表示（例：+P）</span></p>
-<p class="p1"><span class="s1">PIECE_ORDER = ["K", "R", "B", "G", "S", "N", "L", "P"]</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">PROMOTABLE = set(["P", "L", "N", "S", "B", "R"])</span></p>
-<p class="p1"><span class="s1">PROMOTED_MAP = {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"P": "+P",</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"L": "+L",</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"N": "+N",</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"S": "+S",</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"B": "+B",</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"R": "+R",</span></p>
-<p class="p1"><span class="s1">}</span></p>
-<p class="p1"><span class="s1">UNPROMOTE_MAP = {v: k for k, v in PROMOTED_MAP.items()}</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"># 金相当の成駒（と金/成香/成桂/成銀）は動きが同じ</span></p>
-<p class="p1"><span class="s1">GOLD_LIKE = set(["G", "+P", "+L", "+N", "+S"])</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">@dataclass(frozen=True)</span></p>
-<p class="p1"><span class="s1">class Piece:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>kind: str<span class="Apple-converted-space">          </span># "P" "L" ... "+P" "+R" etc</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>color: str <span class="Apple-converted-space">        </span># "B" (先手) or "W" (後手)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def base_kind(self) -&gt; str:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return UNPROMOTE_MAP.get(self.kind, self.kind)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def is_promoted(self) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return self.kind.startswith("+")</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def can_promote(self) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return self.base_kind() in PROMOTABLE and not self.is_promoted()</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def display(self) -&gt; str:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>s = self.kind</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if self.color == "W":</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 後手は小文字表示</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>s = s.lower()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return s</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">def sq_to_xy(sq: str) -&gt; Tuple[int, int]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span># "7f" -&gt; (file_index, rank_index)<span class="Apple-converted-space">  </span>file: '1'..'9' =&gt; 0..8, rank: 'a'..'i' =&gt; 0..8</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>if len(sq) != 2 or sq[0] not in FILES or sq[1] not in RANKS:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>raise ValueError("square format must be like 7f")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>x = FILES.index(sq[0])</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>y = RANKS.index(sq[1])</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>return x, y</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">def xy_to_sq(x: int, y: int) -&gt; str:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>return FILES[x] + RANKS[y]</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">def inside(x: int, y: int) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>return 0 &lt;= x &lt; 9 and 0 &lt;= y &lt; 9</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">class Shogi:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def __init__(self):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.board: List[List[Optional[Piece]]] = [[None for _ in range(9)] for _ in range(9)]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.hands: Dict[str, Dict[str, int]] = {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"B": {k: 0 for k in PIECE_ORDER},</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"W": {k: 0 for k in PIECE_ORDER},</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.turn: str = "B"<span class="Apple-converted-space">  </span># "B"先手, "W"後手</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.reset()</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def reset(self):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 初期配置（一般的な将棋の並び）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.board = [[None for _ in range(9)] for _ in range(9)]</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 1段目（後手陣）: l n s g k g s n l</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>back = ["L", "N", "S", "G", "K", "G", "S", "N", "L"]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>for x, k in enumerate(back):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>self.board[0][x] = Piece(k, "W")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 2段目（後手）： r と b</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.board[1][1] = Piece("B", "W")<span class="Apple-converted-space">  </span># 2bに角（ここは座標系の都合で一般表記と異なるが盤面表示で整合）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.board[1][7] = Piece("R", "W")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 3段目（後手）：歩</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>for x in range(9):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>self.board[2][x] = Piece("P", "W")</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 7段目（先手）：歩</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>for x in range(9):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>self.board[6][x] = Piece("P", "B")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 8段目（先手）：角と飛</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.board[7][1] = Piece("R", "B")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.board[7][7] = Piece("B", "B")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 9段目（先手）: L N S G K G S N L</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>for x, k in enumerate(back):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>self.board[8][x] = Piece(k, "B")</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.hands = {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"B": {k: 0 for k in PIECE_ORDER},</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"W": {k: 0 for k in PIECE_ORDER},</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.turn = "B"</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def promo_zone(self, color: str) -&gt; set:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return PROMO_ZONE_BLACK if color == "B" else PROMO_ZONE_WHITE</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def forward_dir(self, color: str) -&gt; int:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 先手は上へ(-1)、後手は下へ(+1)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return -1 if color == "B" else 1</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def get(self, x: int, y: int) -&gt; Optional[Piece]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return self.board[y][x]</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def set(self, x: int, y: int, p: Optional[Piece]):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.board[y][x] = p</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def print_board(self):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 上(a=0)から下(i=8)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>print("\n<span class="Apple-converted-space">    </span>" + " ".join(FILES))</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>for y in range(9):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>row = []</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for x in range(9):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>p = self.board[y][x]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if p is None:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>row.append(" . ")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>else:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>s = p.display()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span># 2文字(例:+p)もあるので幅合わせ</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if len(s) == 1:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>row.append(f" {s} ")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>else:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>row.append(f"{s:&gt;3}")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print(f"{RANKS[y]} " + "".join(row))</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>print()</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>def hand_str(color: str) -&gt; str:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>parts = []</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for k in PIECE_ORDER:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>c = self.hands[color][k]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if c &gt; 0:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>parts.append(f"{k}{c}")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return " ".join(parts) if parts else "(none)"</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>print(f"Turn: {'Black(先手)' if self.turn=='B' else 'White(後手)'}")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>print(f"Black hand: {hand_str('B')}")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>print(f"White hand: {hand_str('W')}")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>print()</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def opponent(self, color: str) -&gt; str:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return "W" if color == "B" else "B"</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def add_to_hand(self, color: str, captured: Piece):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 取った駒は成りを戻して持ち駒化</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>base = captured.base_kind()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if base == "K":</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 玉は取ったら終了扱いが普通だが、このMVPでは単に許容しない</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># （実戦では玉は取れない＝詰みで終了）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.hands[color][base] += 1</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def can_drop_pawn(self, color: str, x: int, y: int) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 二歩チェック：同じ筋に未成の歩があると不可</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>for yy in range(9):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>p = self.get(x, yy)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if p and p.color == color and p.kind == "P":</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 最終段への歩打ちは不可（動けないため）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if (color == "B" and y == 0) or (color == "W" and y == 8):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return True</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def drop(self, piece_kind: str, to_x: int, to_y: int) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>color = self.turn</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>piece_kind = piece_kind.upper()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if piece_kind not in self.hands[color]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Invalid piece for drop.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if self.hands[color][piece_kind] &lt;= 0:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("You don't have that piece in hand.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if self.get(to_x, to_y) is not None:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Target square is not empty.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 簡易の打ち制約</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if piece_kind == "P" and not self.can_drop_pawn(color, to_x, to_y):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Illegal pawn drop (二歩 or last-rank pawn).")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if piece_kind == "L":</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 香は最終段不可（動けない）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if (color == "B" and to_y == 0) or (color == "W" and to_y == 8):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>print("Illegal lance drop on last rank.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if piece_kind == "N":</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 桂は最終段/その1つ手前不可（動けない）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if (color == "B" and to_y &lt;= 1) or (color == "W" and to_y &gt;= 7):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>print("Illegal knight drop on last two ranks.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return False</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.set(to_x, to_y, Piece(piece_kind, color))</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.hands[color][piece_kind] -= 1</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.turn = self.opponent(self.turn)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return True</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def moves_for(self, x: int, y: int) -&gt; List[Tuple[int, int, bool]]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># (to_x, to_y, sliding) 的に生成してもいいが、ここは合法先だけ返す</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>p = self.get(x, y)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if not p:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return []</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>color = p.color</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>f = self.forward_dir(color)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>def add_step(dx: int, dy: int, acc: List[Tuple[int, int]],):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>tx, ty = x + dx, y + dy</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if not inside(tx, ty):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>t = self.get(tx, ty)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if t is None or t.color != color:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>acc.append((tx, ty))</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>def add_slide(dx: int, dy: int, acc: List[Tuple[int, int]]):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>tx, ty = x + dx, y + dy</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>while inside(tx, ty):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>t = self.get(tx, ty)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if t is None:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>acc.append((tx, ty))</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>else:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if t.color != color:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>acc.append((tx, ty))</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>break</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>tx += dx</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>ty += dy</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>acc: List[Tuple[int, int]] = []</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>k = p.kind</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if k in ["K", "k"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx in (-1, 0, 1):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>for dy in (-1, 0, 1):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if dx == 0 and dy == 0:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>continue</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>add_step(dx, dy, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in GOLD_LIKE or k in [s.lower() for s in GOLD_LIKE]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 金：前/前斜/横/後</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>steps = [(0, f), (-1, f), (1, f), (-1, 0), (1, 0), (0, -f)]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in steps:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_step(dx, dy, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["S", "s"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 銀：前/前斜/後斜</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>steps = [(0, f), (-1, f), (1, f), (-1, -f), (1, -f)]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in steps:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_step(dx, dy, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["N", "n"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 桂：前に2、左右1</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx in (-1, 1):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>tx, ty = x + dx, y + 2*f</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if inside(tx, ty):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>t = self.get(tx, ty)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if t is None or t.color != color:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>acc.append((tx, ty))</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["L", "l"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 香：前に滑走</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>add_slide(0, f, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["P", "p"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 歩：1歩前</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>add_step(0, f, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["B", "b"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 角：斜め滑走</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_slide(dx, dy, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["R", "r"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 飛：縦横滑走</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_slide(dx, dy, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["+B", "+b"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 馬：角＋王の縦横1</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_slide(dx, dy, acc)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_step(dx, dy, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>elif k in ["+R", "+r"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 龍：飛＋王の斜め1</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_slide(dx, dy, acc)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>add_step(dx, dy, acc)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>else:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span># 未定義駒は無し</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>pass</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return acc</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def must_promote_if_reaches_dead_rank(self, piece: Piece, to_y: int) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 歩/香は最終段、桂は最終段orその1つ手前に進んだら成り必須（動けなくなるため）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>base = piece.base_kind()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if base in ["P", "L"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if (piece.color == "B" and to_y == 0) or (piece.color == "W" and to_y == 8):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return True</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if base == "N":</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if (piece.color == "B" and to_y &lt;= 1) or (piece.color == "W" and to_y &gt;= 7):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return True</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return False</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def move(self, frm_x: int, frm_y: int, to_x: int, to_y: int, promote_req: bool) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>p = self.get(frm_x, frm_y)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if p is None:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("No piece on from-square.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if p.color != self.turn:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Not your turn for that piece.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>legal = self.moves_for(frm_x, frm_y)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if (to_x, to_y) not in legal:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Illegal move for that piece (basic rule).")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>target = self.get(to_x, to_y)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if target is not None and target.color == self.turn:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Cannot capture your own piece.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 捕獲</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if target is not None:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>self.add_to_hand(self.turn, target)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 成り処理（任意/必須）</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>will_promote = False</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if p.can_promote():</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>zone = self.promo_zone(p.color)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>in_zone = (frm_y in zone) or (to_y in zone)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if in_zone:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if self.must_promote_if_reaches_dead_rank(p, to_y):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>will_promote = True</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>else:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>will_promote = promote_req</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>new_piece = p</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if will_promote:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>new_piece = Piece(PROMOTED_MAP[p.base_kind()], p.color)</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.set(frm_x, frm_y, None)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.set(to_x, to_y, new_piece)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.turn = self.opponent(self.turn)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return True</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>def parse_and_play(self, s: str) -&gt; bool:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>s = s.strip()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if s.lower() in ["q", "quit", "exit"]:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return False</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 打ち： P*7f</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if "*" in s:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>try:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>pk, sq = s.split("*")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>pk = pk.strip().upper()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>to_x, to_y = sq_to_xy(sq.strip())</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>ok = self.drop(pk, to_x, to_y)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if not ok:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>return True</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return True</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>except Exception:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>print("Drop format: P*7f")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return True</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span># 移動： 7g7f or 7g7f+</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>promote_req = s.endswith("+")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if promote_req:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>s = s[:-1]</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if len(s) != 4:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Move format: 7g7f or 7g7f+")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return True</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>try:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>frm = s[:2]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>to = s[2:]</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>fx, fy = sq_to_xy(frm)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>tx, ty = sq_to_xy(to)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>except Exception:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Square format must be like 7g.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return True</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>self.move(fx, fy, tx, ty, promote_req)</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>return True</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">def main():</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>game = Shogi()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>while True:</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>game.print_board()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>cmd = input("Your move (e.g., 7g7f, 7g7f+, P*7f, quit): ").strip()</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if not game.parse_and_play(cmd):</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>print("Bye.")</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>break</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">if __name__ == "__main__":</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>main()</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-</body>
-</html>
+# shogi_mvp.py
+# CUI将棋MVP：盤・駒の動き・成り・持ち駒・打ち（簡易）
+# 未実装：王手/詰み判定、王手放置禁止、千日手、打ち歩詰め等
+
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import Optional, List, Tuple, Dict
+
+FILES = "123456789"          # 1..9
+RANKS = "abcdefghi"          # a..i  (aが上、iが下)
+PROMO_ZONE_BLACK = set([0, 1, 2])  # 先手(Black)の成りゾーン（相手陣）= 上3段
+PROMO_ZONE_WHITE = set([6, 7, 8])  # 後手(White)の成りゾーン（相手陣）= 下3段
+
+# 表示用：先手は大文字、後手は小文字
+# 成駒は + を付けて表示（例：+P）
+PIECE_ORDER = ["K", "R", "B", "G", "S", "N", "L", "P"]
+
+PROMOTABLE = set(["P", "L", "N", "S", "B", "R"])
+PROMOTED_MAP = {
+    "P": "+P",
+    "L": "+L",
+    "N": "+N",
+    "S": "+S",
+    "B": "+B",
+    "R": "+R",
+}
+UNPROMOTE_MAP = {v: k for k, v in PROMOTED_MAP.items()}
+
+# 金相当の成駒（と金/成香/成桂/成銀）は動きが同じ
+GOLD_LIKE = set(["G", "+P", "+L", "+N", "+S"])
+
+@dataclass(frozen=True)
+class Piece:
+    kind: str          # "P" "L" ... "+P" "+R" etc
+    color: str         # "B" (先手) or "W" (後手)
+
+    def base_kind(self) -> str:
+        return UNPROMOTE_MAP.get(self.kind, self.kind)
+
+    def is_promoted(self) -> bool:
+        return self.kind.startswith("+")
+
+    def can_promote(self) -> bool:
+        return self.base_kind() in PROMOTABLE and not self.is_promoted()
+
+    def display(self) -> str:
+        s = self.kind
+        if self.color == "W":
+            # 後手は小文字表示
+            s = s.lower()
+        return s
+
+def sq_to_xy(sq: str) -> Tuple[int, int]:
+    # "7f" -> (file_index, rank_index)  file: '1'..'9' => 0..8, rank: 'a'..'i' => 0..8
+    if len(sq) != 2 or sq[0] not in FILES or sq[1] not in RANKS:
+        raise ValueError("square format must be like 7f")
+    x = FILES.index(sq[0])
+    y = RANKS.index(sq[1])
+    return x, y
+
+def xy_to_sq(x: int, y: int) -> str:
+    return FILES[x] + RANKS[y]
+
+def inside(x: int, y: int) -> bool:
+    return 0 <= x < 9 and 0 <= y < 9
+
+class Shogi:
+    def __init__(self):
+        self.board: List[List[Optional[Piece]]] = [[None for _ in range(9)] for _ in range(9)]
+        self.hands: Dict[str, Dict[str, int]] = {
+            "B": {k: 0 for k in PIECE_ORDER},
+            "W": {k: 0 for k in PIECE_ORDER},
+        }
+        self.turn: str = "B"  # "B"先手, "W"後手
+        self.reset()
+
+    def reset(self):
+        # 初期配置（一般的な将棋の並び）
+        self.board = [[None for _ in range(9)] for _ in range(9)]
+
+        # 1段目（後手陣）: l n s g k g s n l
+        back = ["L", "N", "S", "G", "K", "G", "S", "N", "L"]
+        for x, k in enumerate(back):
+            self.board[0][x] = Piece(k, "W")
+        # 2段目（後手）： r と b
+        self.board[1][1] = Piece("B", "W")  # 2bに角（ここは座標系の都合で一般表記と異なるが盤面表示で整合）
+        self.board[1][7] = Piece("R", "W")
+        # 3段目（後手）：歩
+        for x in range(9):
+            self.board[2][x] = Piece("P", "W")
+
+        # 7段目（先手）：歩
+        for x in range(9):
+            self.board[6][x] = Piece("P", "B")
+        # 8段目（先手）：角と飛
+        self.board[7][1] = Piece("R", "B")
+        self.board[7][7] = Piece("B", "B")
+        # 9段目（先手）: L N S G K G S N L
+        for x, k in enumerate(back):
+            self.board[8][x] = Piece(k, "B")
+
+        self.hands = {
+            "B": {k: 0 for k in PIECE_ORDER},
+            "W": {k: 0 for k in PIECE_ORDER},
+        }
+        self.turn = "B"
+
+    def promo_zone(self, color: str) -> set:
+        return PROMO_ZONE_BLACK if color == "B" else PROMO_ZONE_WHITE
+
+    def forward_dir(self, color: str) -> int:
+        # 先手は上へ(-1)、後手は下へ(+1)
+        return -1 if color == "B" else 1
+
+    def get(self, x: int, y: int) -> Optional[Piece]:
+        return self.board[y][x]
+
+    def set(self, x: int, y: int, p: Optional[Piece]):
+        self.board[y][x] = p
+
+    def print_board(self):
+        # 上(a=0)から下(i=8)
+        print("\n    " + " ".join(FILES))
+        for y in range(9):
+            row = []
+            for x in range(9):
+                p = self.board[y][x]
+                if p is None:
+                    row.append(" . ")
+                else:
+                    s = p.display()
+                    # 2文字(例:+p)もあるので幅合わせ
+                    if len(s) == 1:
+                        row.append(f" {s} ")
+                    else:
+                        row.append(f"{s:>3}")
+            print(f"{RANKS[y]} " + "".join(row))
+        print()
+
+        def hand_str(color: str) -> str:
+            parts = []
+            for k in PIECE_ORDER:
+                c = self.hands[color][k]
+                if c > 0:
+                    parts.append(f"{k}{c}")
+            return " ".join(parts) if parts else "(none)"
+
+        print(f"Turn: {'Black(先手)' if self.turn=='B' else 'White(後手)'}")
+        print(f"Black hand: {hand_str('B')}")
+        print(f"White hand: {hand_str('W')}")
+        print()
+
+    def opponent(self, color: str) -> str:
+        return "W" if color == "B" else "B"
+
+    def add_to_hand(self, color: str, captured: Piece):
+        # 取った駒は成りを戻して持ち駒化
+        base = captured.base_kind()
+        if base == "K":
+            # 玉は取ったら終了扱いが普通だが、このMVPでは単に許容しない
+            # （実戦では玉は取れない＝詰みで終了）
+            return
+        self.hands[color][base] += 1
+
+    def can_drop_pawn(self, color: str, x: int, y: int) -> bool:
+        # 二歩チェック：同じ筋に未成の歩があると不可
+        for yy in range(9):
+            p = self.get(x, yy)
+            if p and p.color == color and p.kind == "P":
+                return False
+        # 最終段への歩打ちは不可（動けないため）
+        if (color == "B" and y == 0) or (color == "W" and y == 8):
+            return False
+        return True
+
+    def drop(self, piece_kind: str, to_x: int, to_y: int) -> bool:
+        color = self.turn
+        piece_kind = piece_kind.upper()
+        if piece_kind not in self.hands[color]:
+            print("Invalid piece for drop.")
+            return False
+        if self.hands[color][piece_kind] <= 0:
+            print("You don't have that piece in hand.")
+            return False
+        if self.get(to_x, to_y) is not None:
+            print("Target square is not empty.")
+            return False
+
+        # 簡易の打ち制約
+        if piece_kind == "P" and not self.can_drop_pawn(color, to_x, to_y):
+            print("Illegal pawn drop (二歩 or last-rank pawn).")
+            return False
+        if piece_kind == "L":
+            # 香は最終段不可（動けない）
+            if (color == "B" and to_y == 0) or (color == "W" and to_y == 8):
+                print("Illegal lance drop on last rank.")
+                return False
+        if piece_kind == "N":
+            # 桂は最終段/その1つ手前不可（動けない）
+            if (color == "B" and to_y <= 1) or (color == "W" and to_y >= 7):
+                print("Illegal knight drop on last two ranks.")
+                return False
+
+        self.set(to_x, to_y, Piece(piece_kind, color))
+        self.hands[color][piece_kind] -= 1
+        self.turn = self.opponent(self.turn)
+        return True
+
+    def moves_for(self, x: int, y: int) -> List[Tuple[int, int, bool]]:
+        # (to_x, to_y, sliding) 的に生成してもいいが、ここは合法先だけ返す
+        p = self.get(x, y)
+        if not p:
+            return []
+        color = p.color
+        f = self.forward_dir(color)
+
+        def add_step(dx: int, dy: int, acc: List[Tuple[int, int]],):
+            tx, ty = x + dx, y + dy
+            if not inside(tx, ty):
+                return
+            t = self.get(tx, ty)
+            if t is None or t.color != color:
+                acc.append((tx, ty))
+
+        def add_slide(dx: int, dy: int, acc: List[Tuple[int, int]]):
+            tx, ty = x + dx, y + dy
+            while inside(tx, ty):
+                t = self.get(tx, ty)
+                if t is None:
+                    acc.append((tx, ty))
+                else:
+                    if t.color != color:
+                        acc.append((tx, ty))
+                    break
+                tx += dx
+                ty += dy
+
+        acc: List[Tuple[int, int]] = []
+        k = p.kind
+
+        if k in ["K", "k"]:
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    if dx == 0 and dy == 0:
+                        continue
+                    add_step(dx, dy, acc)
+
+        elif k in GOLD_LIKE or k in [s.lower() for s in GOLD_LIKE]:
+            # 金：前/前斜/横/後
+            steps = [(0, f), (-1, f), (1, f), (-1, 0), (1, 0), (0, -f)]
+            for dx, dy in steps:
+                add_step(dx, dy, acc)
+
+        elif k in ["S", "s"]:
+            # 銀：前/前斜/後斜
+            steps = [(0, f), (-1, f), (1, f), (-1, -f), (1, -f)]
+            for dx, dy in steps:
+                add_step(dx, dy, acc)
+
+        elif k in ["N", "n"]:
+            # 桂：前に2、左右1
+            for dx in (-1, 1):
+                tx, ty = x + dx, y + 2*f
+                if inside(tx, ty):
+                    t = self.get(tx, ty)
+                    if t is None or t.color != color:
+                        acc.append((tx, ty))
+
+        elif k in ["L", "l"]:
+            # 香：前に滑走
+            add_slide(0, f, acc)
+
+        elif k in ["P", "p"]:
+            # 歩：1歩前
+            add_step(0, f, acc)
+
+        elif k in ["B", "b"]:
+            # 角：斜め滑走
+            for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:
+                add_slide(dx, dy, acc)
+
+        elif k in ["R", "r"]:
+            # 飛：縦横滑走
+            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+                add_slide(dx, dy, acc)
+
+        elif k in ["+B", "+b"]:
+            # 馬：角＋王の縦横1
+            for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:
+                add_slide(dx, dy, acc)
+            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+                add_step(dx, dy, acc)
+
+        elif k in ["+R", "+r"]:
+            # 龍：飛＋王の斜め1
+            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+                add_slide(dx, dy, acc)
+            for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:
+                add_step(dx, dy, acc)
+
+        else:
+            # 未定義駒は無し
+            pass
+
+        return acc
+
+    def must_promote_if_reaches_dead_rank(self, piece: Piece, to_y: int) -> bool:
+        # 歩/香は最終段、桂は最終段orその1つ手前に進んだら成り必須（動けなくなるため）
+        base = piece.base_kind()
+        if base in ["P", "L"]:
+            if (piece.color == "B" and to_y == 0) or (piece.color == "W" and to_y == 8):
+                return True
+        if base == "N":
+            if (piece.color == "B" and to_y <= 1) or (piece.color == "W" and to_y >= 7):
+                return True
+        return False
+
+    def move(self, frm_x: int, frm_y: int, to_x: int, to_y: int, promote_req: bool) -> bool:
+        p = self.get(frm_x, frm_y)
+        if p is None:
+            print("No piece on from-square.")
+            return False
+        if p.color != self.turn:
+            print("Not your turn for that piece.")
+            return False
+
+        legal = self.moves_for(frm_x, frm_y)
+        if (to_x, to_y) not in legal:
+            print("Illegal move for that piece (basic rule).")
+            return False
+
+        target = self.get(to_x, to_y)
+        if target is not None and target.color == self.turn:
+            print("Cannot capture your own piece.")
+            return False
+
+        # 捕獲
+        if target is not None:
+            self.add_to_hand(self.turn, target)
+
+        # 成り処理（任意/必須）
+        will_promote = False
+        if p.can_promote():
+            zone = self.promo_zone(p.color)
+            in_zone = (frm_y in zone) or (to_y in zone)
+            if in_zone:
+                if self.must_promote_if_reaches_dead_rank(p, to_y):
+                    will_promote = True
+                else:
+                    will_promote = promote_req
+
+        new_piece = p
+        if will_promote:
+            new_piece = Piece(PROMOTED_MAP[p.base_kind()], p.color)
+
+        self.set(frm_x, frm_y, None)
+        self.set(to_x, to_y, new_piece)
+        self.turn = self.opponent(self.turn)
+        return True
+
+    def parse_and_play(self, s: str) -> bool:
+        s = s.strip()
+        if s.lower() in ["q", "quit", "exit"]:
+            return False
+
+        # 打ち： P*7f
+        if "*" in s:
+            try:
+                pk, sq = s.split("*")
+                pk = pk.strip().upper()
+                to_x, to_y = sq_to_xy(sq.strip())
+                ok = self.drop(pk, to_x, to_y)
+                if not ok:
+                    return True
+                return True
+            except Exception:
+                print("Drop format: P*7f")
+                return True
+
+        # 移動： 7g7f or 7g7f+
+        promote_req = s.endswith("+")
+        if promote_req:
+            s = s[:-1]
+
+        if len(s) != 4:
+            print("Move format: 7g7f or 7g7f+")
+            return True
+
+        try:
+            frm = s[:2]
+            to = s[2:]
+            fx, fy = sq_to_xy(frm)
+            tx, ty = sq_to_xy(to)
+        except Exception:
+            print("Square format must be like 7g.")
+            return True
+
+        self.move(fx, fy, tx, ty, promote_req)
+        return True
+
+
+def main():
+    game = Shogi()
+    while True:
+        game.print_board()
+        cmd = input("Your move (e.g., 7g7f, 7g7f+, P*7f, quit): ").strip()
+        if not game.parse_and_play(cmd):
+            print("Bye.")
+            break
+
+if __name__ == "__main__":
+    main()
