@@ -1,3 +1,27 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shogi MVP</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; }
+    pre { background:#f5f5f5; padding:12px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Shogi MVP</h1>
+  <p>Python版はブラウザで直接実行できないので、JS版に移植して動かします。</p>
+  <pre id="board"></pre>
+
+  <script>
+    // まずは盤の表示だけ（ここにロジックを足していく）
+    const board = Array.from({length:9},()=>Array(9).fill(" . "));
+    document.getElementById("board").textContent =
+      board.map(r=>r.join("")).join("\n");
+  </script>
+</body>
+</html>
 # shogi_mvp.py
 # CUI将棋MVP：盤・駒の動き・成り・持ち駒・打ち（簡易）
 # 未実装：王手/詰み判定、王手放置禁止、千日手、打ち歩詰め等
